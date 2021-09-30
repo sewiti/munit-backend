@@ -1,0 +1,17 @@
+[Unit]
+Description=Munit API Server
+After=network.target
+StartLimitIntervalSec=90
+StartLimitBurst=3
+
+[Service]
+Type=exec
+User=munit
+WorkingDirectory=/opt/munit
+ExecStart=/opt/munit/munit
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
