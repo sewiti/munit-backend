@@ -1,0 +1,32 @@
+name: Build
+
+on:
+  push:
+    branches-ignore:
+    - master
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.17
+
+    - name: Build
+      run: go build -v -o munit ./...
+
+    - name: Test
+      run: go test -v ./...
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: munit
+        path: munit
+        if-no-files-found: error
