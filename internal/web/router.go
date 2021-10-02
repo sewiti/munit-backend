@@ -28,6 +28,14 @@ func NewRouter(cfg *config.Munit) http.Handler {
 	pr.Methods("PUT").Path("/{" + projectUUID + "}").HandlerFunc(projectPut)
 	pr.Methods("DELETE").Path("/{" + projectUUID + "}").HandlerFunc(projectDelete)
 
+	// Commits
+	cr := pr.PathPrefix("/{" + projectUUID + "}/commits").Subrouter()
+	cr.Methods("GET").Path("").HandlerFunc(commitGetAll)
+	cr.Methods("POST").Path("").HandlerFunc(commitPost)
+	cr.Methods("GET").Path("/{" + commitUUID + "}").HandlerFunc(commitGet)
+	cr.Methods("PUT").Path("/{" + commitUUID + "}").HandlerFunc(commitPut)
+	cr.Methods("DELETE").Path("/{" + commitUUID + "}").HandlerFunc(commitDelete)
+
 	// Setup CORS
 	origins := handlers.AllowedOrigins([]string{cfg.AllowedOrigin})
 	headers := handlers.AllowedHeaders([]string{"Content-Type"})

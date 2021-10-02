@@ -100,7 +100,7 @@ func DeleteProject(project uuid.UUID) error {
 		if mockProjects[i].UUID == project {
 			copy(mockProjects[i:], mockProjects[i+1:])
 			mockProjects = mockProjects[:len(mockProjects)-1]
-			return nil
+			return deleteAllCommits(project)
 		}
 	}
 	return ErrProjectNotFound
