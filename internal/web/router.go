@@ -20,6 +20,14 @@ const (
 func NewRouter(cfg *config.Munit) http.Handler {
 	r := mux.NewRouter()
 
+	// Projects
+	pr := r.PathPrefix("/projects").Subrouter()
+	pr.Methods("GET").Path("").HandlerFunc(projectGetAll)
+	pr.Methods("POST").Path("").HandlerFunc(projectPost)
+	pr.Methods("GET").Path("/{" + projectUUID + "}").HandlerFunc(projectGet)
+	pr.Methods("PUT").Path("/{" + projectUUID + "}").HandlerFunc(projectPut)
+	pr.Methods("DELETE").Path("/{" + projectUUID + "}").HandlerFunc(projectDelete)
+
 	// Setup CORS
 	origins := handlers.AllowedOrigins([]string{cfg.AllowedOrigin})
 	headers := handlers.AllowedHeaders([]string{"Content-Type"})
