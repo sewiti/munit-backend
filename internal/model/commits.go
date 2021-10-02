@@ -121,7 +121,7 @@ func DeleteCommit(project, commit uuid.UUID) error {
 		if c.Project == project && c.UUID == commit {
 			copy(mockCommits[i:], mockCommits[i+1:])
 			mockCommits = mockCommits[:len(mockCommits)-1]
-			return nil
+			return deleteAllFiles(c.UUID)
 		}
 	}
 	return ErrCommitNotFound
@@ -137,6 +137,9 @@ func DeleteAllCommits(project uuid.UUID) error {
 func deleteAllCommits(project uuid.UUID) error {
 	for i := len(mockCommits) - 1; i >= 0; i-- {
 		if mockCommits[i].Project == project {
+			if err := deleteAllFiles(mockCommits[i].UUID); err != nil {
+				return err
+			}
 			copy(mockCommits[i:], mockCommits[i+1:])
 			mockCommits = mockCommits[:len(mockCommits)-1]
 		}
