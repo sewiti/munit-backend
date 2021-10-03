@@ -11,7 +11,7 @@ import (
 func projectGetAll(w http.ResponseWriter, r *http.Request) {
 	p, err := model.GetAllProjects()
 	if err != nil {
-		respondBadRequest(w, err)
+		respondNotFound(w, err)
 		return
 	}
 	respondOK(w, p)
@@ -51,7 +51,7 @@ func projectPost(w http.ResponseWriter, r *http.Request) {
 		respondBadRequest(w, err)
 		return
 	}
-	respondOK(w, p)
+	respond(w, p, http.StatusCreated)
 }
 
 func projectPut(w http.ResponseWriter, r *http.Request) {

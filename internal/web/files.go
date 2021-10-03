@@ -17,7 +17,7 @@ func fileGetAll(w http.ResponseWriter, r *http.Request) {
 
 	f, err := model.GetAllFiles(uuids[1])
 	if err != nil {
-		respondBadRequest(w, err)
+		respondNotFound(w, err)
 		return
 	}
 	respondOK(w, f)
@@ -63,7 +63,7 @@ func filePost(w http.ResponseWriter, r *http.Request) {
 		respondBadRequest(w, err)
 		return
 	}
-	respondOK(w, f)
+	respond(w, f, http.StatusCreated)
 }
 
 func filePut(w http.ResponseWriter, r *http.Request) {

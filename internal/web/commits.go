@@ -17,7 +17,7 @@ func commitGetAll(w http.ResponseWriter, r *http.Request) {
 
 	c, err := model.GetAllCommits(uuids[0])
 	if err != nil {
-		respondBadRequest(w, err)
+		respondNotFound(w, err)
 		return
 	}
 	respondOK(w, c)
@@ -63,7 +63,7 @@ func commitPost(w http.ResponseWriter, r *http.Request) {
 		respondBadRequest(w, err)
 		return
 	}
-	respondOK(w, c)
+	respond(w, c, http.StatusCreated)
 }
 
 func commitPut(w http.ResponseWriter, r *http.Request) {
