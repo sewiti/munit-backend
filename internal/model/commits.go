@@ -5,47 +5,44 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/sewiti/munit-backend/internal/id"
 )
 
 var mockCommits = []Commit{
 	{
-		UUID:     uuid.MustParse("bd2267ec-901e-48db-b7fa-62e78198e73b"),
+		ID:       1,
 		Title:    "Project setup",
 		Message:  "",
 		Created:  time.Now(),
 		Modified: time.Now(),
 
-		Project: uuid.MustParse("2a43ea0b-6c12-4aeb-82e4-d5a4362d92fc"),
+		Project: "2a43ea0b",
 	},
 	{
-		UUID:     uuid.MustParse("824e8770-c7a9-44d8-8dea-90e0d1a35be4"),
+		ID:       2,
 		Title:    "Initial recording",
 		Message:  "",
 		Created:  time.Now(),
 		Modified: time.Now(),
 
-		Project: uuid.MustParse("2a43ea0b-6c12-4aeb-82e4-d5a4362d92fc"),
+		Project: "2a43ea0b",
 	},
 }
 
 type Commit struct {
-	UUID     uuid.UUID `json:"uuid"`
+	ID       int       `json:"id"`
 	Title    string    `json:"title"`
 	Message  string    `json:"message"`
 	Created  time.Time `json:"created"`
 	Modified time.Time `json:"modified"`
 
-	Project uuid.UUID `json:"project"`
+	Project id.ID `json:"projectID"`
 }
 
 var ErrCommitNotFound = fmt.Errorf("commit %w", ErrNotFound)
 
 func (c Commit) valid() error {
 	const maxTitle = 72
-	if len(c.UUID) == 0 {
-		return errors.New("project uuid is empty")
-	}
 	if c.Title == "" {
 		return errors.New("commit title is empty")
 	}
@@ -56,28 +53,28 @@ func (c Commit) valid() error {
 	return err
 }
 
-func GetCommit(project, commit uuid.UUID) (Commit, error) {
+func GetCommit(project id.ID, commitID int) (Commit, error) {
 	if _, err := GetProject(project); err != nil {
 		return Commit{}, err
 	}
 	for _, c := range mockCommits {
-		if c.Project == project && c.UUID == commit {
+		if c.Project == project && c.ID == commitID {
 			return c, nil
 		}
 	}
 	return Commit{}, ErrCommitNotFound
 }
 
-func getCommit(commit uuid.UUID) (Commit, error) {
+func getCommit(commitID int) (Commit, error) {
 	for _, c := range mockCommits {
-		if c.UUID == commit {
+		if c.ID == commitID {
 			return c, nil
 		}
 	}
 	return Commit{}, ErrCommitNotFound
 }
 
-func GetAllCommits(project uuid.UUID) ([]Commit, error) {
+func GetAllCommits(project id.ID) ([]Commit, error) {
 	if _, err := GetProject(project); err != nil {
 		return nil, err
 	}
@@ -95,6 +92,7 @@ func AddCommit(c *Commit) error {
 		return err
 	}
 	now := time.Now()
+	c.ID = mockCommits[len(mockCommits)-1].ID + 1
 	c.Created = now
 	c.Modified = now
 	mockCommits = append(mockCommits, *c)
@@ -106,7 +104,7 @@ func EditCommit(c *Commit) error {
 		return err
 	}
 	for i, mc := range mockCommits {
-		if mc.UUID == c.UUID {
+		if mc.ID == c.ID {
 			c.Created = mc.Created
 			c.Modified = time.Now()
 			mockCommits[i] = *c
@@ -116,28 +114,28 @@ func EditCommit(c *Commit) error {
 	return ErrCommitNotFound
 }
 
-func DeleteCommit(project, commit uuid.UUID) error {
+func DeleteCommit(project id.ID, commitID int) error {
 	for i, c := range mockCommits {
-		if c.Project == project && c.UUID == commit {
+		if c.Project == project && c.ID == commitID {
 			copy(mockCommits[i:], mockCommits[i+1:])
 			mockCommits = mockCommits[:len(mockCommits)-1]
-			return deleteAllFiles(c.UUID)
+			return deleteAllFiles(c.ID)
 		}
 	}
 	return ErrCommitNotFound
 }
 
-func DeleteAllCommits(project uuid.UUID) error {
+func DeleteAllCommits(project id.ID) error {
 	if _, err := GetProject(project); err != nil {
 		return err
 	}
 	return deleteAllCommits(project)
 }
 
-func deleteAllCommits(project uuid.UUID) error {
+func deleteAllCommits(project id.ID) error {
 	for i := len(mockCommits) - 1; i >= 0; i-- {
 		if mockCommits[i].Project == project {
-			if err := deleteAllFiles(mockCommits[i].UUID); err != nil {
+			if err := deleteAllFiles(mockCommits[i].ID); err != nil {
 				return err
 			}
 			copy(mockCommits[i:], mockCommits[i+1:])

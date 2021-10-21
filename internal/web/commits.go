@@ -3,19 +3,17 @@ package web
 import (
 	"net/http"
 
-	"github.com/apex/log"
-	"github.com/google/uuid"
 	"github.com/sewiti/munit-backend/internal/model"
 )
 
 func commitGetAll(w http.ResponseWriter, r *http.Request) {
-	uuids, err := getUUIDs(r, projectUUID)
+	prID, _, err := getIDs(r)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	c, err := model.GetAllCommits(uuids[0])
+	c, err := model.GetAllCommits(prID)
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -24,13 +22,13 @@ func commitGetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func commitGet(w http.ResponseWriter, r *http.Request) {
-	uuids, err := getUUIDs(r, projectUUID, commitUUID)
+	prID, ids, err := getIDs(r, commitID)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	c, err := model.GetCommit(uuids[0], uuids[1])
+	c, err := model.GetCommit(prID, ids[0])
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -39,7 +37,7 @@ func commitGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func commitPost(w http.ResponseWriter, r *http.Request) {
-	uuids, err := getUUIDs(r, projectUUID)
+	prID, _, err := getIDs(r)
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -51,13 +49,7 @@ func commitPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.UUID, err = uuid.NewRandom()
-	if err != nil {
-		log.WithError(err).Error("unable to generate uuid")
-		respondInternalError(w)
-		return
-	}
-	c.Project = uuids[0]
+	c.Project = prID
 
 	if err = model.AddCommit(&c); err != nil {
 		respondErr(w, err)
@@ -67,7 +59,7 @@ func commitPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func commitPut(w http.ResponseWriter, r *http.Request) {
-	uuids, err := getUUIDs(r, projectUUID, commitUUID)
+	prID, ids, err := getIDs(r, commitID)
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -79,8 +71,8 @@ func commitPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.Project = uuids[0] // Disallow changing Project
-	c.UUID = uuids[1]    // Disallow changing UUID
+	c.Project = prID // Disallow changing Project
+	c.ID = ids[0]    // Disallow changing ID
 
 	if err = model.EditCommit(&c); err != nil {
 		respondErr(w, err)
@@ -90,13 +82,13 @@ func commitPut(w http.ResponseWriter, r *http.Request) {
 }
 
 func commitDelete(w http.ResponseWriter, r *http.Request) {
-	uuids, err := getUUIDs(r, projectUUID, commitUUID)
+	prID, ids, err := getIDs(r, commitID)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	if err := model.DeleteCommit(uuids[0], uuids[1]); err != nil {
+	if err := model.DeleteCommit(prID, ids[0]); err != nil {
 		respondErr(w, err)
 		return
 	}

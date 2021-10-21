@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/apex/log"
-	"github.com/google/uuid"
+	"github.com/sewiti/munit-backend/internal/id"
 	"github.com/sewiti/munit-backend/internal/model"
 )
 
@@ -18,13 +18,13 @@ func projectGetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func projectGet(w http.ResponseWriter, r *http.Request) {
-	uuids, err := getUUIDs(r, projectUUID)
+	prID, _, err := getIDs(r)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	p, err := model.GetProject(uuids[0])
+	p, err := model.GetProject(prID)
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -40,7 +40,7 @@ func projectPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	p.UUID, err = uuid.NewRandom()
+	p.ID, err = id.New()
 	if err != nil {
 		log.WithError(err).Error("unable to generate uuid")
 		respondInternalError(w)
@@ -55,7 +55,7 @@ func projectPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func projectPut(w http.ResponseWriter, r *http.Request) {
-	uuids, err := getUUIDs(r, projectUUID)
+	prID, _, err := getIDs(r)
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -66,7 +66,7 @@ func projectPut(w http.ResponseWriter, r *http.Request) {
 		respondErr(w, err)
 		return
 	}
-	p.UUID = uuids[0] // Disallow changing UUID
+	p.ID = prID // Disallow changing ID
 
 	if err = model.EditProject(&p); err != nil {
 		respondErr(w, err)
@@ -76,13 +76,13 @@ func projectPut(w http.ResponseWriter, r *http.Request) {
 }
 
 func projectDelete(w http.ResponseWriter, r *http.Request) {
-	uuids, err := getUUIDs(r, projectUUID)
+	prID, _, err := getIDs(r)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	if err := model.DeleteProject(uuids[0]); err != nil {
+	if err := model.DeleteProject(prID); err != nil {
 		respondErr(w, err)
 		return
 	}

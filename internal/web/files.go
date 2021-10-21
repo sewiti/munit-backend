@@ -3,19 +3,17 @@ package web
 import (
 	"net/http"
 
-	"github.com/apex/log"
-	"github.com/google/uuid"
 	"github.com/sewiti/munit-backend/internal/model"
 )
 
 func fileGetAll(w http.ResponseWriter, r *http.Request) {
-	uuids, err := getUUIDs(r, projectUUID, commitUUID)
+	_, ids, err := getIDs(r, commitID)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	f, err := model.GetAllFiles(uuids[1])
+	f, err := model.GetAllFiles(ids[0])
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -24,13 +22,13 @@ func fileGetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func fileGet(w http.ResponseWriter, r *http.Request) {
-	uuids, err := getUUIDs(r, projectUUID, commitUUID, fileUUID)
+	_, ids, err := getIDs(r, commitID, fileID)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	f, err := model.GetFile(uuids[1], uuids[2])
+	f, err := model.GetFile(ids[0], ids[1])
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -39,7 +37,7 @@ func fileGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func filePost(w http.ResponseWriter, r *http.Request) {
-	uuids, err := getUUIDs(r, projectUUID, commitUUID)
+	_, ids, err := getIDs(r, commitID)
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -51,13 +49,7 @@ func filePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f.UUID, err = uuid.NewRandom()
-	if err != nil {
-		log.WithError(err).Error("unable to generate uuid")
-		respondInternalError(w)
-		return
-	}
-	f.Commit = uuids[1]
+	f.Commit = ids[0]
 
 	if err = model.AddFile(&f); err != nil {
 		respondErr(w, err)
@@ -67,7 +59,7 @@ func filePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func filePut(w http.ResponseWriter, r *http.Request) {
-	uuids, err := getUUIDs(r, projectUUID, commitUUID, fileUUID)
+	_, ids, err := getIDs(r, commitID, fileID)
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -79,8 +71,8 @@ func filePut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f.Commit = uuids[1] // Disallow changing Project
-	f.UUID = uuids[2]   // Disallow changing UUID
+	f.Commit = ids[0] // Disallow changing Project
+	f.ID = ids[1]     // Disallow changing ID
 
 	if err = model.EditFile(&f); err != nil {
 		respondErr(w, err)
@@ -90,13 +82,13 @@ func filePut(w http.ResponseWriter, r *http.Request) {
 }
 
 func fileDelete(w http.ResponseWriter, r *http.Request) {
-	uuids, err := getUUIDs(r, projectUUID, commitUUID, fileUUID)
+	_, ids, err := getIDs(r, commitID, fileID)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	if err := model.DeleteFile(uuids[1], uuids[2]); err != nil {
+	if err := model.DeleteFile(ids[0], ids[1]); err != nil {
 		respondErr(w, err)
 		return
 	}

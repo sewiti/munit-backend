@@ -7,47 +7,47 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/sewiti/munit-backend/internal/id"
 )
 
 var mockFiles = []File{
 	{
-		UUID:     uuid.MustParse("84ef2c38-24c3-47dc-9991-4ad1961c47bb"),
+		ID:       1,
 		Path:     "/project.als",
 		Data:     []byte("project\n"),
 		Created:  time.Now(),
 		Modified: time.Now(),
 
-		Commit: uuid.MustParse("bd2267ec-901e-48db-b7fa-62e78198e73b"),
+		Commit:  1,
+		Project: "2a43ea0b",
 	},
 	{
-		UUID:     uuid.MustParse("a9e08373-a4c7-49bb-b9fd-ac672aeb6cc1"),
+		ID:       2,
 		Path:     "/project info/project.cfg",
 		Data:     []byte("ProjectInfo ProjectInfo\n"),
 		Created:  time.Now(),
 		Modified: time.Now(),
 
-		Commit: uuid.MustParse("bd2267ec-901e-48db-b7fa-62e78198e73b"),
+		Commit:  1,
+		Project: "2a43ea0b",
 	},
 }
 
 type File struct {
-	UUID     uuid.UUID `json:"uuid"`
+	ID       int       `json:"id"`
 	Path     string    `json:"path"`
 	Data     []byte    `json:"data"`
 	Created  time.Time `json:"created"`
 	Modified time.Time `json:"modified"`
 
-	Commit uuid.UUID `json:"commit"`
+	Commit  int   `json:"commitID"`
+	Project id.ID `json:"projectID"`
 }
 
 var ErrFileNotFound = fmt.Errorf("file %w", ErrNotFound)
 
 func (f File) valid() error {
 	const maxPath = 1000
-	if len(f.UUID) == 0 {
-		return errors.New("project uuid is empty")
-	}
 	if !strings.HasPrefix(f.Path, "/") {
 		return errors.New("file path: must start with /")
 	}
@@ -61,25 +61,25 @@ func (f File) valid() error {
 	return err
 }
 
-func GetFile(commit, file uuid.UUID) (File, error) {
-	if _, err := getCommit(commit); err != nil {
+func GetFile(commitID, fileID int) (File, error) {
+	if _, err := getCommit(commitID); err != nil {
 		return File{}, err
 	}
 	for _, f := range mockFiles {
-		if f.Commit == commit && f.UUID == file {
+		if f.Commit == commitID && f.ID == fileID {
 			return f, nil
 		}
 	}
 	return File{}, ErrFileNotFound
 }
 
-func GetAllFiles(commit uuid.UUID) ([]File, error) {
-	if _, err := getCommit(commit); err != nil {
+func GetAllFiles(commitID int) ([]File, error) {
+	if _, err := getCommit(commitID); err != nil {
 		return nil, err
 	}
 	var files []File
 	for _, f := range mockFiles {
-		if f.Commit == commit {
+		if f.Commit == commitID {
 			files = append(files, f)
 		}
 	}
@@ -91,6 +91,7 @@ func AddFile(f *File) error {
 		return err
 	}
 	now := time.Now()
+	f.ID = mockFiles[len(mockFiles)-1].ID + 1
 	f.Created = now
 	f.Modified = now
 	mockFiles = append(mockFiles, *f)
@@ -102,7 +103,7 @@ func EditFile(f *File) error {
 		return err
 	}
 	for i, mf := range mockFiles {
-		if mf.UUID == f.UUID {
+		if mf.ID == f.ID {
 			f.Created = mf.Created
 			f.Modified = time.Now()
 			mockFiles[i] = *f
@@ -112,9 +113,9 @@ func EditFile(f *File) error {
 	return ErrFileNotFound
 }
 
-func DeleteFile(commit, file uuid.UUID) error {
+func DeleteFile(commitID, fileID int) error {
 	for i, f := range mockFiles {
-		if f.Commit == commit && f.UUID == file {
+		if f.Commit == commitID && f.ID == fileID {
 			copy(mockFiles[i:], mockFiles[i+1:])
 			mockFiles = mockFiles[:len(mockFiles)-1]
 			return nil
@@ -123,16 +124,16 @@ func DeleteFile(commit, file uuid.UUID) error {
 	return ErrFileNotFound
 }
 
-func DeleteAllFiles(commit uuid.UUID) error {
-	if _, err := getCommit(commit); err != nil {
+func DeleteAllFiles(commitID int) error {
+	if _, err := getCommit(commitID); err != nil {
 		return err
 	}
-	return deleteAllFiles(commit)
+	return deleteAllFiles(commitID)
 }
 
-func deleteAllFiles(commit uuid.UUID) error {
+func deleteAllFiles(commitID int) error {
 	for i := len(mockFiles) - 1; i >= 0; i-- {
-		if mockFiles[i].Commit == commit {
+		if mockFiles[i].Commit == commitID {
 			copy(mockFiles[i:], mockFiles[i+1:])
 			mockFiles = mockFiles[:len(mockFiles)-1]
 		}

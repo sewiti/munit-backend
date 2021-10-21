@@ -6,25 +6,35 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/sewiti/munit-backend/internal/id"
 )
 
 var ErrUnsupportedContent = errors.New("unsupported content type")
 
-func getUUIDs(r *http.Request, keys ...string) ([]uuid.UUID, error) {
+func getIDs(r *http.Request, keys ...string) (project id.ID, ids []int, err error) {
 	vars := mux.Vars(r)
-	var uuids []uuid.UUID
-	for _, k := range keys {
-		id, err := uuid.Parse(vars[k])
-		if err != nil {
-			return nil, err
-		}
-		uuids = append(uuids, id)
+
+	v, ok := vars[projectID]
+	if !ok {
+		return "", nil, errors.New("project ID not provided")
 	}
-	return uuids, nil
+	prID, err := id.Parse(v)
+	if err != nil {
+		return "", nil, err
+	}
+
+	ids = make([]int, len(keys))
+	for i, k := range keys {
+		ids[i], err = strconv.Atoi(vars[k])
+		if err != nil {
+			return "", nil, err
+		}
+	}
+	return prID, ids, nil
 }
 
 func assertJSON(r *http.Request) error {
