@@ -11,7 +11,7 @@ import (
 func projectGetAll(w http.ResponseWriter, r *http.Request) {
 	p, err := model.GetAllProjects()
 	if err != nil {
-		respondNotFound(w, err)
+		respondErr(w, err)
 		return
 	}
 	respondOK(w, p)
@@ -20,13 +20,13 @@ func projectGetAll(w http.ResponseWriter, r *http.Request) {
 func projectGet(w http.ResponseWriter, r *http.Request) {
 	uuids, err := getUUIDs(r, projectUUID)
 	if err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 
 	p, err := model.GetProject(uuids[0])
 	if err != nil {
-		respondNotFound(w, err)
+		respondErr(w, err)
 		return
 	}
 	respondOK(w, p)
@@ -35,7 +35,7 @@ func projectGet(w http.ResponseWriter, r *http.Request) {
 func projectPost(w http.ResponseWriter, r *http.Request) {
 	var p model.Project
 	if err := decodeJSON(r, &p); err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 
@@ -48,7 +48,7 @@ func projectPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = model.AddProject(&p); err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 	respond(w, p, http.StatusCreated)
@@ -57,19 +57,19 @@ func projectPost(w http.ResponseWriter, r *http.Request) {
 func projectPut(w http.ResponseWriter, r *http.Request) {
 	uuids, err := getUUIDs(r, projectUUID)
 	if err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 
 	var p model.Project
 	if err := decodeJSON(r, &p); err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 	p.UUID = uuids[0] // Disallow changing UUID
 
 	if err = model.EditProject(&p); err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 	respondOK(w, p)
@@ -78,13 +78,13 @@ func projectPut(w http.ResponseWriter, r *http.Request) {
 func projectDelete(w http.ResponseWriter, r *http.Request) {
 	uuids, err := getUUIDs(r, projectUUID)
 	if err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 
 	if err := model.DeleteProject(uuids[0]); err != nil {
-		respondNotFound(w, err)
+		respondErr(w, err)
 		return
 	}
-	respondNoContent(w)
+	respond(w, nil, http.StatusNoContent)
 }

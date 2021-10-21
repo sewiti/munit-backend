@@ -11,13 +11,13 @@ import (
 func fileGetAll(w http.ResponseWriter, r *http.Request) {
 	uuids, err := getUUIDs(r, projectUUID, commitUUID)
 	if err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 
 	f, err := model.GetAllFiles(uuids[1])
 	if err != nil {
-		respondNotFound(w, err)
+		respondErr(w, err)
 		return
 	}
 	respondOK(w, f)
@@ -26,13 +26,13 @@ func fileGetAll(w http.ResponseWriter, r *http.Request) {
 func fileGet(w http.ResponseWriter, r *http.Request) {
 	uuids, err := getUUIDs(r, projectUUID, commitUUID, fileUUID)
 	if err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 
 	f, err := model.GetFile(uuids[1], uuids[2])
 	if err != nil {
-		respondNotFound(w, err)
+		respondErr(w, err)
 		return
 	}
 	respondOK(w, f)
@@ -41,13 +41,13 @@ func fileGet(w http.ResponseWriter, r *http.Request) {
 func filePost(w http.ResponseWriter, r *http.Request) {
 	uuids, err := getUUIDs(r, projectUUID, commitUUID)
 	if err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 
 	var f model.File
 	if err = decodeJSONLimit(r, &f, fileBodyLimit); err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 
@@ -60,7 +60,7 @@ func filePost(w http.ResponseWriter, r *http.Request) {
 	f.Commit = uuids[1]
 
 	if err = model.AddFile(&f); err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 	respond(w, f, http.StatusCreated)
@@ -69,13 +69,13 @@ func filePost(w http.ResponseWriter, r *http.Request) {
 func filePut(w http.ResponseWriter, r *http.Request) {
 	uuids, err := getUUIDs(r, projectUUID, commitUUID, fileUUID)
 	if err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 
 	var f model.File
 	if err = decodeJSONLimit(r, &f, fileBodyLimit); err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 
@@ -83,7 +83,7 @@ func filePut(w http.ResponseWriter, r *http.Request) {
 	f.UUID = uuids[2]   // Disallow changing UUID
 
 	if err = model.EditFile(&f); err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 	respondOK(w, f)
@@ -92,13 +92,13 @@ func filePut(w http.ResponseWriter, r *http.Request) {
 func fileDelete(w http.ResponseWriter, r *http.Request) {
 	uuids, err := getUUIDs(r, projectUUID, commitUUID, fileUUID)
 	if err != nil {
-		respondBadRequest(w, err)
+		respondErr(w, err)
 		return
 	}
 
 	if err := model.DeleteFile(uuids[1], uuids[2]); err != nil {
-		respondNotFound(w, err)
+		respondErr(w, err)
 		return
 	}
-	respondNoContent(w)
+	respond(w, nil, http.StatusNoContent)
 }

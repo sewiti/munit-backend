@@ -43,7 +43,7 @@ type File struct {
 
 var ErrFileNotFound = fmt.Errorf("file %w", ErrNotFound)
 
-func (f File) Valid() error {
+func (f File) valid() error {
 	const maxPath = 1000
 	if len(f.UUID) == 0 {
 		return errors.New("project uuid is empty")
@@ -87,7 +87,7 @@ func GetAllFiles(commit uuid.UUID) ([]File, error) {
 }
 
 func AddFile(f *File) error {
-	if err := f.Valid(); err != nil {
+	if err := f.valid(); err != nil {
 		return err
 	}
 	now := time.Now()
@@ -98,7 +98,7 @@ func AddFile(f *File) error {
 }
 
 func EditFile(f *File) error {
-	if err := f.Valid(); err != nil {
+	if err := f.valid(); err != nil {
 		return err
 	}
 	for i, mf := range mockFiles {

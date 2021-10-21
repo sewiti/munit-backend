@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -10,6 +11,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
+
+var ErrUnsupportedContent = errors.New("unsupported content type")
 
 func getUUIDs(r *http.Request, keys ...string) ([]uuid.UUID, error) {
 	vars := mux.Vars(r)
@@ -36,7 +39,7 @@ func assertJSON(r *http.Request) error {
 	if strings.HasPrefix(content, contentJSON+";") {
 		return nil
 	}
-	return errors.New("unsupported content type, expected " + contentJSON)
+	return fmt.Errorf("%w: expected "+contentJSON, ErrUnsupportedContent)
 }
 
 func decodeJSONLimit(r *http.Request, v interface{}, limit int64) error {

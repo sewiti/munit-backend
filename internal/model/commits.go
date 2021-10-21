@@ -41,7 +41,7 @@ type Commit struct {
 
 var ErrCommitNotFound = fmt.Errorf("commit %w", ErrNotFound)
 
-func (c Commit) Valid() error {
+func (c Commit) valid() error {
 	const maxTitle = 72
 	if len(c.UUID) == 0 {
 		return errors.New("project uuid is empty")
@@ -91,7 +91,7 @@ func GetAllCommits(project uuid.UUID) ([]Commit, error) {
 }
 
 func AddCommit(c *Commit) error {
-	if err := c.Valid(); err != nil {
+	if err := c.valid(); err != nil {
 		return err
 	}
 	now := time.Now()
@@ -102,7 +102,7 @@ func AddCommit(c *Commit) error {
 }
 
 func EditCommit(c *Commit) error {
-	if err := c.Valid(); err != nil {
+	if err := c.valid(); err != nil {
 		return err
 	}
 	for i, mc := range mockCommits {

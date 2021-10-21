@@ -42,7 +42,7 @@ type Project struct {
 
 var ErrProjectNotFound = fmt.Errorf("project %w", ErrNotFound)
 
-func (p Project) Valid() error {
+func (p Project) valid() error {
 	const maxName = 72
 	if len(p.UUID) == 0 {
 		return errors.New("project uuid is empty")
@@ -70,7 +70,7 @@ func GetAllProjects() ([]Project, error) {
 }
 
 func AddProject(p *Project) error {
-	if err := p.Valid(); err != nil {
+	if err := p.valid(); err != nil {
 		return err
 	}
 	now := time.Now()
@@ -81,7 +81,7 @@ func AddProject(p *Project) error {
 }
 
 func EditProject(p *Project) error {
-	if err := p.Valid(); err != nil {
+	if err := p.valid(); err != nil {
 		return err
 	}
 	for i, mp := range mockProjects {
