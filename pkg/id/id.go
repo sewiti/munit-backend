@@ -2,8 +2,9 @@ package id
 
 import (
 	"crypto/rand"
-	"fmt"
+	"errors"
 	"math/big"
+	"strings"
 )
 
 const (
@@ -12,6 +13,8 @@ const (
 )
 
 var lenSymbols = big.NewInt(int64(len(symbols)))
+
+var ErrInvalidID = errors.New("invalid id")
 
 type ID string
 
@@ -28,8 +31,22 @@ func New() (ID, error) {
 }
 
 func Parse(s string) (ID, error) {
-	if len(s) != length {
-		return "", fmt.Errorf("invalid ID length: %s", s)
+	if err := ID(s).Verify(); err != nil {
+		return "", err
 	}
 	return ID(s), nil
+}
+
+// Verify checks ID's validity.
+// Returns ErrInvalidID if invalid.
+func (id ID) Verify() error {
+	if len(id) != length {
+		return ErrInvalidID
+	}
+	for _, r := range id {
+		if !strings.ContainsRune(symbols, r) {
+			return ErrInvalidID
+		}
+	}
+	return nil
 }

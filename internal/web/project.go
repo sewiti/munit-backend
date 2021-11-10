@@ -2,14 +2,15 @@ package web
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/apex/log"
-	"github.com/sewiti/munit-backend/internal/id"
 	"github.com/sewiti/munit-backend/internal/model"
+	"github.com/sewiti/munit-backend/pkg/id"
 )
 
 func projectGetAll(w http.ResponseWriter, r *http.Request) {
-	p, err := model.GetAllProjects()
+	p, err := model.GetAllProjects(r.Context())
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -24,7 +25,7 @@ func projectGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := model.GetProject(prID)
+	p, err := model.GetProject(r.Context(), prID)
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -46,33 +47,44 @@ func projectPost(w http.ResponseWriter, r *http.Request) {
 		respondInternalError(w)
 		return
 	}
+	now := time.Now()
+	p.Created = now
+	p.Modified = now
 
-	if err = model.AddProject(&p); err != nil {
+	if err = model.InsertProject(r.Context(), &p); err != nil {
 		respondErr(w, err)
 		return
 	}
 	respond(w, p, http.StatusCreated)
 }
 
-func projectPut(w http.ResponseWriter, r *http.Request) {
+func projectPatch(w http.ResponseWriter, r *http.Request) {
 	prID, _, err := getIDs(r)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	var p model.Project
-	if err := decodeJSON(r, &p); err != nil {
+	var ret *model.Project
+	err = model.UpdateProject(r.Context(), prID, func(p *model.Project) error {
+		orig := *p
+		if err := decodeJSON(r, &p); err != nil {
+			return err
+		}
+		p.ID = orig.ID
+		p.Created = orig.Created
+		p.Modified = time.Now()
+		if p.Contributors == nil {
+			p.Contributors = make([]id.ID, 0)
+		}
+		ret = p
+		return nil
+	})
+	if err != nil {
 		respondErr(w, err)
 		return
 	}
-	p.ID = prID // Disallow changing ID
-
-	if err = model.EditProject(&p); err != nil {
-		respondErr(w, err)
-		return
-	}
-	respondOK(w, p)
+	respondOK(w, ret)
 }
 
 func projectDelete(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +94,7 @@ func projectDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := model.DeleteProject(prID); err != nil {
+	if err := model.DeleteProject(r.Context(), prID); err != nil {
 		respondErr(w, err)
 		return
 	}

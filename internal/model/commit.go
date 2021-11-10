@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sewiti/munit-backend/internal/id"
+	"github.com/sewiti/munit-backend/pkg/id"
 )
 
 var mockCommits = []Commit{
@@ -49,14 +49,10 @@ func (c Commit) valid() error {
 	if len(c.Title) > maxTitle {
 		return fmt.Errorf("commit title is too long (max %d chars)", maxTitle)
 	}
-	_, err := GetProject(c.Project)
-	return err
+	return nil
 }
 
 func GetCommit(project id.ID, commitID int) (Commit, error) {
-	if _, err := GetProject(project); err != nil {
-		return Commit{}, err
-	}
 	for _, c := range mockCommits {
 		if c.Project == project && c.ID == commitID {
 			return c, nil
@@ -75,9 +71,6 @@ func getCommit(commitID int) (Commit, error) {
 }
 
 func GetAllCommits(project id.ID) ([]Commit, error) {
-	if _, err := GetProject(project); err != nil {
-		return nil, err
-	}
 	var commits []Commit
 	for _, c := range mockCommits {
 		if c.Project == project {
@@ -126,9 +119,6 @@ func DeleteCommit(project id.ID, commitID int) error {
 }
 
 func DeleteAllCommits(project id.ID) error {
-	if _, err := GetProject(project); err != nil {
-		return err
-	}
 	return deleteAllCommits(project)
 }
 

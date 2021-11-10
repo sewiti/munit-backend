@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sewiti/munit-backend/internal/id"
+	"github.com/sewiti/munit-backend/pkg/id"
 )
 
 var mockFiles = []File{

@@ -39,7 +39,7 @@ func NewRouter(cfg *config.Munit) http.Handler {
 	pr.Methods("GET").Path("").HandlerFunc(projectGetAll)
 	pr.Methods("POST").Path("").HandlerFunc(projectPost)
 	pr.Methods("GET").Path("/" + projectVar).HandlerFunc(projectGet)
-	pr.Methods("PUT").Path("/" + projectVar).HandlerFunc(projectPut)
+	pr.Methods("PATCH").Path("/" + projectVar).HandlerFunc(projectPatch)
 	pr.Methods("DELETE").Path("/" + projectVar).HandlerFunc(projectDelete)
 
 	// Commits
@@ -61,8 +61,6 @@ func NewRouter(cfg *config.Munit) http.Handler {
 	// Setup CORS
 	origins := handlers.AllowedOrigins([]string{cfg.AllowedOrigin})
 	headers := handlers.AllowedHeaders([]string{"Content-Type"})
-	methods := handlers.AllowedMethods([]string{http.MethodGet, http.MethodPost,
-		http.MethodPut, http.MethodDelete})
-
+	methods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "PATCH", "DELETE"})
 	return handlers.CORS(origins, headers, methods)(r)
 }

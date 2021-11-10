@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/sewiti/munit-backend/internal/id"
+	"github.com/sewiti/munit-backend/pkg/id"
 )
 
 var ErrUnsupportedContent = errors.New("unsupported content type")
