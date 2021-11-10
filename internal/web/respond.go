@@ -1,10 +1,12 @@
 package web
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
 
+	"github.com/apex/log"
 	"github.com/sewiti/munit-backend/internal/model"
 )
 
@@ -16,7 +18,10 @@ func respond(w http.ResponseWriter, body interface{}, code int) {
 	}
 	w.Header().Add("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(body)
+	err := json.NewEncoder(w).Encode(body)
+	if err != nil {
+		log.WithError(err).WithField("body", body).Error("unable to encode json")
+	}
 }
 
 // respondMsg responds with a JSON:
@@ -36,16 +41,24 @@ func respondOK(w http.ResponseWriter, body interface{}) {
 
 // respondErr responds based on error type.
 //	model.ErrNotFound:     http.StatusNotFound,
+//	sql.ErrNoRows:         http.StatusNotFound,
 //	ErrUnsupportedContent: http.StatusUnsupportedMediaType,
 func respondErr(w http.ResponseWriter, err error) {
 	code := http.StatusBadRequest
 	switch {
-	case errors.Is(err, model.ErrNotFound):
-		code = http.StatusNotFound
+	case errors.Is(err, model.ErrNotFound) || errors.Is(err, sql.ErrNoRows):
+		respondMsg(w, "resource is unavailable", 404)
+		return
 	case errors.Is(err, ErrUnsupportedContent):
 		code = http.StatusUnsupportedMediaType
 	}
 	respondMsg(w, err.Error(), code)
+}
+
+// respondUnauthorized is a shorthand for
+//	respondMsg(w, "401 Unauthorized", http.StatusUnauthorized)
+func respondUnauthorized(w http.ResponseWriter) {
+	respondMsg(w, "401 Unauthorized", http.StatusUnauthorized)
 }
 
 // respondInternalError is a shorthand for

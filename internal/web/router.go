@@ -29,8 +29,13 @@ func NewRouter(cfg *config.Munit) http.Handler {
 	)
 	r := mux.NewRouter()
 
+	// Auth
+	r.Methods("POST").Path("/register").HandlerFunc(register)
+	r.Methods("GET").Path("/login").HandlerFunc(login)
+
 	// Projects
 	pr := r.PathPrefix("/projects").Subrouter()
+	pr.Use(authMiddleware)
 	pr.Methods("GET").Path("").HandlerFunc(projectGetAll)
 	pr.Methods("POST").Path("").HandlerFunc(projectPost)
 	pr.Methods("GET").Path("/" + projectVar).HandlerFunc(projectGet)
