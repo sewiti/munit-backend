@@ -6,35 +6,27 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/sewiti/munit-backend/pkg/id"
 )
 
-var ErrUnsupportedContent = errors.New("unsupported content type")
-
-func getIDs(r *http.Request, keys ...string) (project id.ID, ids []int, err error) {
+func getIDs(r *http.Request, keys ...string) ([]id.ID, error) {
 	vars := mux.Vars(r)
-
-	v, ok := vars[projectID]
-	if !ok {
-		return "", nil, errors.New("project ID not provided")
-	}
-	prID, err := id.Parse(v)
-	if err != nil {
-		return "", nil, err
+	if vars == nil {
+		return nil, errors.New("vars is nil")
 	}
 
-	ids = make([]int, len(keys))
+	var err error
+	ids := make([]id.ID, len(keys))
 	for i, k := range keys {
-		ids[i], err = strconv.Atoi(vars[k])
+		ids[i], err = id.Parse(vars[k])
 		if err != nil {
-			return "", nil, err
+			return nil, fmt.Errorf("%s: %w", k, err)
 		}
 	}
-	return prID, ids, nil
+	return ids, nil
 }
 
 func assertJSON(r *http.Request) error {
@@ -49,7 +41,7 @@ func assertJSON(r *http.Request) error {
 	if strings.HasPrefix(content, contentJSON+";") {
 		return nil
 	}
-	return fmt.Errorf("%w: expected "+contentJSON, ErrUnsupportedContent)
+	return errUnsupportedMedia
 }
 
 func decodeJSONLimit(r *http.Request, v interface{}, limit int64) error {
@@ -60,5 +52,5 @@ func decodeJSONLimit(r *http.Request, v interface{}, limit int64) error {
 }
 
 func decodeJSON(r *http.Request, v interface{}) error {
-	return decodeJSONLimit(r, v, bodyLimit)
+	return decodeJSONLimit(r, v, defaultBodyLimit)
 }

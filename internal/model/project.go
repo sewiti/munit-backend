@@ -39,15 +39,17 @@ func (p *Project) scan(sc scanner) error {
 	return err
 }
 
-func (p *Project) verify() error {
+func (p *Project) validate() error {
 	const (
-		maxName = 72
-
+		maxName        = 72
 		maxDescription = 1024
 	)
 
-	if err := p.ID.Verify(); err != nil {
+	if err := p.ID.Validate(); err != nil {
 		return fmt.Errorf("project: %w", err)
+	}
+	if err := p.Owner.Validate(); err != nil {
+		return fmt.Errorf("project: owner: %w", err)
 	}
 
 	// Name
@@ -62,13 +64,24 @@ func (p *Project) verify() error {
 	if len(p.Description) > maxDescription {
 		return fmt.Errorf("project: description is too long, max %d", maxDescription)
 	}
+
+	// Contributors
+	for _, c := range p.Contributors {
+		if err := c.Validate(); err != nil {
+			return fmt.Errorf("project: contributor: %w", err)
+		}
+		if c == p.Owner {
+			return fmt.Errorf("project: owner cannot be a contributor")
+		}
+	}
 	return nil
 }
 
 func GetProject(ctx context.Context, pid id.ID) (*Project, error) {
 	rows, err := db.QueryContext(ctx,
 		"SELECT p.id, p.name, p.description, p.created, p.modified, p.owner_id, c.user_id "+
-			"FROM project p LEFT JOIN contributor c ON p.id=c.project_id WHERE p.id=?",
+			"FROM project p LEFT JOIN contributor c ON p.id=c.project_id "+
+			"WHERE p.id=?",
 		pid,
 	)
 	if err != nil {
@@ -78,6 +91,8 @@ func GetProject(ctx context.Context, pid id.ID) (*Project, error) {
 }
 
 func getProject(rows *sql.Rows) (*Project, error) {
+	defer rows.Close()
+
 	p := new(Project)
 	var err error
 	for rows.Next() {
@@ -88,22 +103,24 @@ func getProject(rows *sql.Rows) (*Project, error) {
 	}
 
 	if err = rows.Err(); err != nil {
-		_ = rows.Close()
 		return nil, err
 	}
-	if err = rows.Close(); err != nil {
-		return nil, err
-	}
-	if p.ID == "" {
+	if err = p.ID.Validate(); err != nil {
 		return nil, ErrNotFound
+	}
+	if p.Contributors == nil {
+		p.Contributors = make([]id.ID, 0)
 	}
 	return p, nil
 }
 
-func GetAllProjects(ctx context.Context) ([]Project, error) {
+func GetAllProjects(ctx context.Context, uid id.ID) ([]Project, error) {
+	// TODO: Refactor
 	rows, err := db.QueryContext(ctx,
 		"SELECT p.id, p.name, p.description, p.created, p.modified, p.owner_id, c.user_id "+
-			"FROM project p LEFT JOIN contributor c ON p.id=c.project_id",
+			"FROM project p LEFT JOIN contributor c ON p.id=c.project_id "+
+			"WHERE p.owner_id=? OR c.user_id=?",
+		uid, uid,
 	)
 	if err != nil {
 		return nil, err
@@ -142,7 +159,7 @@ func GetAllProjects(ctx context.Context) ([]Project, error) {
 }
 
 func InsertProject(ctx context.Context, p *Project) error {
-	if err := p.verify(); err != nil {
+	if err := p.validate(); err != nil {
 		return err
 	}
 
@@ -189,10 +206,10 @@ func InsertProject(ctx context.Context, p *Project) error {
 	return tx.Commit()
 }
 
-func UpdateProject(ctx context.Context, pid id.ID, modifyFn func(*Project) error) error {
+func UpdateProject(ctx context.Context, pid id.ID, modifyFn func(*Project) error) (*Project, error) {
 	tx, err := db.Begin()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer tx.Rollback()
 
@@ -202,17 +219,17 @@ func UpdateProject(ctx context.Context, pid id.ID, modifyFn func(*Project) error
 		pid,
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	p, err := getProject(rows)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err = modifyFn(p); err != nil {
-		return err
+		return nil, err
 	}
-	if err = p.verify(); err != nil {
-		return err
+	if err = p.validate(); err != nil {
+		return nil, err
 	}
 
 	_, err = tx.ExecContext(ctx,
@@ -224,13 +241,13 @@ func UpdateProject(ctx context.Context, pid id.ID, modifyFn func(*Project) error
 		pid,
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Contributors
 	_, err = tx.ExecContext(ctx, "DELETE FROM contributor WHERE project_id=?", pid)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(p.Contributors) > 0 {
 		var query strings.Builder
@@ -247,11 +264,11 @@ func UpdateProject(ctx context.Context, pid id.ID, modifyFn func(*Project) error
 
 		_, err = tx.ExecContext(ctx, query.String(), args...)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return tx.Commit()
+	return p, tx.Commit()
 }
 
 func DeleteProject(ctx context.Context, pid id.ID) error {
@@ -261,15 +278,20 @@ func DeleteProject(ctx context.Context, pid id.ID) error {
 	}
 	defer tx.Rollback()
 
+	_, err = tx.ExecContext(ctx, "DELETE FROM file WHERE project_id=?", pid)
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, "DELETE FROM commit WHERE project_id=?", pid)
+	if err != nil {
+		return err
+	}
 	_, err = tx.ExecContext(ctx, "DELETE FROM contributor WHERE project_id=?", pid)
 	if err != nil {
 		return err
 	}
 	res, err := tx.ExecContext(ctx, "DELETE FROM project WHERE id=?", pid)
 	if err != nil {
-		return err
-	}
-	if err = tx.Commit(); err != nil {
 		return err
 	}
 
@@ -280,5 +302,5 @@ func DeleteProject(ctx context.Context, pid id.ID) error {
 	if n == 0 {
 		return ErrNotFound
 	}
-	return nil
+	return tx.Commit()
 }

@@ -1,6 +1,9 @@
 package web
 
 import (
+	"encoding/json"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -10,7 +13,14 @@ import (
 )
 
 func projectGetAll(w http.ResponseWriter, r *http.Request) {
-	p, err := model.GetAllProjects(r.Context())
+	uid, err := getUser(r)
+	if err != nil {
+		log.WithError(err).Error("unable to get user from context")
+		respondInternalError(w)
+		return
+	}
+
+	p, err := model.GetAllProjects(r.Context(), uid)
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -19,13 +29,13 @@ func projectGetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func projectGet(w http.ResponseWriter, r *http.Request) {
-	prID, _, err := getIDs(r)
+	ids, err := getIDs(r, projectID)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	p, err := model.GetProject(r.Context(), prID)
+	p, err := model.GetProject(r.Context(), ids[0])
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -34,20 +44,27 @@ func projectGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func projectPost(w http.ResponseWriter, r *http.Request) {
+	uid, err := getUser(r)
+	if err != nil {
+		log.WithError(err).Error("unable to get user from context")
+		respondInternalError(w)
+		return
+	}
+
 	var p model.Project
 	if err := decodeJSON(r, &p); err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	var err error
 	p.ID, err = id.New()
 	if err != nil {
-		log.WithError(err).Error("unable to generate uuid")
+		log.WithError(err).Error("unable to generate id")
 		respondInternalError(w)
 		return
 	}
-	now := time.Now()
+	now := time.Now().Truncate(time.Second)
+	p.Owner = uid
 	p.Created = now
 	p.Modified = now
 
@@ -59,42 +76,76 @@ func projectPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func projectPatch(w http.ResponseWriter, r *http.Request) {
-	prID, _, err := getIDs(r)
+	if err := assertJSON(r); err != nil {
+		respondErr(w, err)
+		return
+	}
+	data, err := ioutil.ReadAll(io.LimitReader(r.Body, defaultBodyLimit))
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	var ret *model.Project
-	err = model.UpdateProject(r.Context(), prID, func(p *model.Project) error {
+	ids, err := getIDs(r, projectID)
+	if err != nil {
+		respondErr(w, err)
+		return
+	}
+	uid, err := getUser(r)
+	if err != nil {
+		log.WithError(err).Error("unable to get user from context")
+		respondInternalError(w)
+		return
+	}
+
+	p, err := model.UpdateProject(r.Context(), ids[0], func(p *model.Project) error {
+		if p.Owner != uid {
+			return errForbidden
+		}
+
 		orig := *p
-		if err := decodeJSON(r, &p); err != nil {
+		if err := json.Unmarshal(data, &p); err != nil {
 			return err
 		}
 		p.ID = orig.ID
 		p.Created = orig.Created
-		p.Modified = time.Now()
+		p.Modified = time.Now().Truncate(time.Second)
 		if p.Contributors == nil {
 			p.Contributors = make([]id.ID, 0)
 		}
-		ret = p
 		return nil
 	})
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
-	respondOK(w, ret)
+	respondOK(w, p)
 }
 
 func projectDelete(w http.ResponseWriter, r *http.Request) {
-	prID, _, err := getIDs(r)
+	ids, err := getIDs(r, projectID)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
+	uid, err := getUser(r)
+	if err != nil {
+		log.WithError(err).Error("unable to get user from context")
+		respondInternalError(w)
+		return
+	}
 
-	if err := model.DeleteProject(r.Context(), prID); err != nil {
+	p, err := model.GetProject(r.Context(), ids[0])
+	if err != nil {
+		respondErr(w, err)
+		return
+	}
+	if p.Owner != uid {
+		respondErr(w, errForbidden)
+		return
+	}
+
+	if err = model.DeleteProject(r.Context(), ids[0]); err != nil {
 		respondErr(w, err)
 		return
 	}

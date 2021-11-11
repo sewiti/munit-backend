@@ -31,15 +31,15 @@ func New() (ID, error) {
 }
 
 func Parse(s string) (ID, error) {
-	if err := ID(s).Verify(); err != nil {
+	if err := ID(s).Validate(); err != nil {
 		return "", err
 	}
 	return ID(s), nil
 }
 
-// Verify checks ID's validity.
+// Validate checks ID's validity.
 // Returns ErrInvalidID if invalid.
-func (id ID) Verify() error {
+func (id ID) Validate() error {
 	if len(id) != length {
 		return ErrInvalidID
 	}

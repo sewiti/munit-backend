@@ -1,19 +1,29 @@
 package web
 
 import (
+	"encoding/json"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"time"
 
+	"github.com/apex/log"
 	"github.com/sewiti/munit-backend/internal/model"
+	"github.com/sewiti/munit-backend/pkg/id"
 )
 
 func commitGetAll(w http.ResponseWriter, r *http.Request) {
-	prID, _, err := getIDs(r)
+	ids, err := getIDs(r, projectID)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
-
-	c, err := model.GetAllCommits(prID)
+	_, err = model.GetProject(r.Context(), ids[0])
+	if err != nil {
+		respondErr(w, err)
+		return
+	}
+	c, err := model.GetAllCommits(r.Context(), ids[0])
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -22,13 +32,13 @@ func commitGetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func commitGet(w http.ResponseWriter, r *http.Request) {
-	prID, ids, err := getIDs(r, commitID)
+	ids, err := getIDs(r, projectID, commitID)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	c, err := model.GetCommit(prID, ids[0])
+	c, err := model.GetCommit(r.Context(), ids[0], ids[1])
 	if err != nil {
 		respondErr(w, err)
 		return
@@ -37,9 +47,16 @@ func commitGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func commitPost(w http.ResponseWriter, r *http.Request) {
-	prID, _, err := getIDs(r)
+	ids, err := getIDs(r, projectID)
 	if err != nil {
 		respondErr(w, err)
+		return
+	}
+
+	uid, err := getUser(r)
+	if err != nil {
+		log.WithError(err).Error("unable to get user from context")
+		respondInternalError(w)
 		return
 	}
 
@@ -49,32 +66,54 @@ func commitPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.Project = prID
+	c.ID, err = id.New()
+	if err != nil {
+		log.WithError(err).Error("unable to make id")
+		respondInternalError(w)
+		return
+	}
+	now := time.Now().Truncate(time.Second)
+	c.Created = now
+	c.Modified = now
+	c.User = uid
+	c.Project = ids[0]
 
-	if err = model.AddCommit(&c); err != nil {
+	if err = model.InsertCommit(r.Context(), &c); err != nil {
 		respondErr(w, err)
 		return
 	}
 	respond(w, c, http.StatusCreated)
 }
 
-func commitPut(w http.ResponseWriter, r *http.Request) {
-	prID, ids, err := getIDs(r, commitID)
+func commitPatch(w http.ResponseWriter, r *http.Request) {
+	ids, err := getIDs(r, projectID, commitID)
+	if err != nil {
+		respondErr(w, err)
+		return
+	}
+	if err := assertJSON(r); err != nil {
+		respondErr(w, err)
+		return
+	}
+	data, err := ioutil.ReadAll(io.LimitReader(r.Body, defaultBodyLimit))
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
 
-	var c model.Commit
-	if err = decodeJSON(r, &c); err != nil {
-		respondErr(w, err)
-		return
-	}
-
-	c.Project = prID // Disallow changing Project
-	c.ID = ids[0]    // Disallow changing ID
-
-	if err = model.EditCommit(&c); err != nil {
+	c, err := model.EditCommit(r.Context(), ids[0], ids[1], func(c *model.Commit) error {
+		orig := *c
+		if err := json.Unmarshal(data, c); err != nil {
+			return err
+		}
+		c.ID = orig.ID
+		c.Created = orig.Created
+		c.Modified = time.Now().Truncate(time.Second)
+		c.Project = orig.Project
+		c.User = orig.User
+		return nil
+	})
+	if err != nil {
 		respondErr(w, err)
 		return
 	}
@@ -82,13 +121,13 @@ func commitPut(w http.ResponseWriter, r *http.Request) {
 }
 
 func commitDelete(w http.ResponseWriter, r *http.Request) {
-	prID, ids, err := getIDs(r, commitID)
+	ids, err := getIDs(r, projectID, commitID)
 	if err != nil {
 		respondErr(w, err)
 		return
 	}
-
-	if err := model.DeleteCommit(prID, ids[0]); err != nil {
+	err = model.DeleteCommit(r.Context(), ids[0], ids[1])
+	if err != nil {
 		respondErr(w, err)
 		return
 	}

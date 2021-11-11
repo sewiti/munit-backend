@@ -3,34 +3,35 @@ package auth
 import (
 	"crypto/ed25519"
 	"crypto/rand"
-	"io/ioutil"
+	"encoding/base64"
 	"os"
 
 	"github.com/apex/log"
 )
 
 const (
-	secretLen      = 32
+	secretLen      = ed25519.SeedSize
 	secretFilePerm = os.FileMode(0600)
 )
 
 func LoadSecret(file string) error {
 	secret, err := readSecret(file)
-	if err != nil && !os.IsNotExist(err) {
-		return err // error
-	}
-	if len(secret) != secretLen {
-		// ErrNotFound or bad length
-		if len(secret) != secretLen {
-			log.WithField("file", file).Warn("bad secret length")
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.WithError(err).WithField("file", file).Warn("unable to read secret")
 		}
+	} else if len(secret) != secretLen {
+		log.WithField("file", file).Warnf("secret invalid length: got %d, expected %d", len(secret), secretLen)
+	}
+
+	if err != nil || len(secret) != secretLen {
 		log.WithField("file", file).Info("creating secret")
 		secret, err = createSecret(secretLen)
 		if err != nil {
-			return err
+			return err // will log.Fatal outside
 		}
-		if err = writeSecret(file, secret); err != nil {
-			log.WithError(err).WithField("file", file).Warn("unable to save secret")
+		if err = writeSecret(file, secret); err != nil { // non fatal
+			log.WithError(err).WithField("file", file).Warn("unable to write secret")
 		}
 	}
 
@@ -44,6 +45,7 @@ func readSecret(file string) ([]byte, error) {
 		return nil, err
 	}
 	defer f.Close()
+
 	stat, err := f.Stat()
 	if err != nil {
 		return nil, err
@@ -51,11 +53,30 @@ func readSecret(file string) ([]byte, error) {
 	if stat.Mode().Perm() != secretFilePerm {
 		log.WithField("file", file).Warnf("secret file perm not %v", secretFilePerm)
 	}
-	return ioutil.ReadAll(f)
+
+	enc := base64.NewDecoder(base64.StdEncoding, f)
+	secret := make([]byte, secretLen)
+	_, err = enc.Read(secret)
+	if err != nil {
+		return nil, err
+	}
+	return secret, nil
 }
 
 func writeSecret(file string, secret []byte) error {
-	return os.WriteFile(file, secret, secretFilePerm)
+	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, secretFilePerm)
+	if err != nil {
+		return err
+	}
+	enc := base64.NewEncoder(base64.RawStdEncoding, f)
+	_, err = enc.Write(secret)
+	if errCl := enc.Close(); errCl != nil && err == nil {
+		err = errCl
+	}
+	if errCl := f.Close(); errCl != nil && err == nil {
+		err = errCl
+	}
+	return err
 }
 
 func createSecret(len int) ([]byte, error) {

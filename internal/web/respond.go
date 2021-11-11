@@ -7,7 +7,14 @@ import (
 	"net/http"
 
 	"github.com/apex/log"
+	"github.com/go-sql-driver/mysql"
 	"github.com/sewiti/munit-backend/internal/model"
+)
+
+var (
+	errForbidden        = errors.New("403 Forbidden")
+	errUnsupportedMedia = errors.New("415 Unsupported Media Type")
+	errInternalError    = errors.New("500 Internal Server Error")
 )
 
 // respond responds with a JSON encoded body.
@@ -40,17 +47,36 @@ func respondOK(w http.ResponseWriter, body interface{}) {
 }
 
 // respondErr responds based on error type.
-//	model.ErrNotFound:     http.StatusNotFound,
-//	sql.ErrNoRows:         http.StatusNotFound,
-//	ErrUnsupportedContent: http.StatusUnsupportedMediaType,
+//	- errForbidden:          403
+//	- model.ErrNotFound:     404
+//	- sql.ErrNoRows:         404
+//	- errUnsupportedContent: 415
+//	- errInternalError:      500
 func respondErr(w http.ResponseWriter, err error) {
 	code := http.StatusBadRequest
-	switch {
-	case errors.Is(err, model.ErrNotFound) || errors.Is(err, sql.ErrNoRows):
-		respondMsg(w, "resource is unavailable", 404)
+	if sqlErr, ok := err.(*mysql.MySQLError); ok {
+		log.WithError(sqlErr).Error("mysql error")
+		respondInternalError(w)
 		return
-	case errors.Is(err, ErrUnsupportedContent):
+	}
+
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		err = model.ErrNotFound
+		code = http.StatusNotFound
+
+	case errors.Is(err, model.ErrNotFound):
+		code = http.StatusNotFound
+
+	case errors.Is(err, errForbidden):
+		code = http.StatusForbidden
+
+	case errors.Is(err, errUnsupportedMedia):
 		code = http.StatusUnsupportedMediaType
+
+	case errors.Is(err, errInternalError):
+		respondInternalError(w)
+		return
 	}
 	respondMsg(w, err.Error(), code)
 }

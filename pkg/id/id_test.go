@@ -21,3 +21,22 @@ func TestID(t *testing.T) {
 		assert.Fail(t, fmt.Sprintf("unexpected character: %c", r), id)
 	}
 }
+
+func TestParse(t *testing.T) {
+	tests := []struct {
+		id  string
+		err error
+	}{
+		{"", ErrInvalidID},
+		{"1234", ErrInvalidID},
+		{"asd31234", nil},
+		{"as__d234", ErrInvalidID},
+	}
+
+	for _, test := range tests {
+		t.Run(test.id, func(t *testing.T) {
+			_, err := Parse(test.id)
+			assert.ErrorIs(t, err, test.err)
+		})
+	}
+}
