@@ -75,7 +75,8 @@ func verifyProjectAssociate(ctx context.Context, project, user id.ID) error {
 			return nil
 		}
 	}
-	return model.ErrNotFound // Fake 404
+	return errForbidden
+	// return model.ErrNotFound // Fake 404
 }
 
 func getUser(r *http.Request) (id.ID, error) {
