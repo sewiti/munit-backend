@@ -9,46 +9,66 @@ import (
 )
 
 const (
-	projectUUID = "projectUUID" // Project UUID path key
-	commitUUID  = "commitUUID"  // Commit UUID path key
-	fileUUID    = "fileUUID"    // File UUID path key
+	userID    = "userID"    // User ID path key
+	projectID = "projectID" // Project ID path key
+	commitID  = "commitID"  // Commit ID path key
+	fileID    = "fileID"    // File ID path key
 
-	bodyLimit     = 1024 * 1024      // 1MiB
-	fileBodyLimit = 1024 * 1024 * 50 // 50MiB
+	idPattern = "[A-Za-z0-9]+"
+
+	defaultBodyLimit     = 1024 * 1024      // 1MiB
+	defaultFileBodyLimit = 1024 * 1024 * 50 // 50MiB
 )
 
 func NewRouter(cfg *config.Munit) http.Handler {
+	const (
+		userVar    = "{" + userID + ":" + idPattern + "}"
+		projectVar = "{" + projectID + ":" + idPattern + "}"
+		commitVar  = "{" + commitID + ":" + idPattern + "}"
+		fileVar    = "{" + fileID + ":" + idPattern + "}"
+	)
 	r := mux.NewRouter()
 
-	// Projects
-	pr := r.PathPrefix("/projects").Subrouter()
-	pr.Methods("GET").Path("").HandlerFunc(projectGetAll)
-	pr.Methods("POST").Path("").HandlerFunc(projectPost)
-	pr.Methods("GET").Path("/{" + projectUUID + "}").HandlerFunc(projectGet)
-	pr.Methods("PUT").Path("/{" + projectUUID + "}").HandlerFunc(projectPut)
-	pr.Methods("DELETE").Path("/{" + projectUUID + "}").HandlerFunc(projectDelete)
+	// Auth
+	r.Methods("POST").Path("/register").HandlerFunc(registerPost)
+	r.Methods("GET").Path("/login").HandlerFunc(loginGet)
 
-	// Commits
-	cr := pr.PathPrefix("/{" + projectUUID + "}/commits").Subrouter()
-	cr.Methods("GET").Path("").HandlerFunc(commitGetAll)
-	cr.Methods("POST").Path("").HandlerFunc(commitPost)
-	cr.Methods("GET").Path("/{" + commitUUID + "}").HandlerFunc(commitGet)
-	cr.Methods("PUT").Path("/{" + commitUUID + "}").HandlerFunc(commitPut)
-	cr.Methods("DELETE").Path("/{" + commitUUID + "}").HandlerFunc(commitDelete)
+	// Profile
+	profile := r.PathPrefix("/profile").Subrouter()
+	profile.Use(authMiddleware)
+	profile.Methods("GET").Path("/" + userVar).HandlerFunc(profileGet)
+	profile.Methods("GET").Path("").HandlerFunc(profileSelfGet)
+	profile.Methods("PATCH").Path("").HandlerFunc(profilePatch)
+	profile.Methods("DELETE").Path("").HandlerFunc(profileDelete)
 
-	// Files
-	fr := cr.PathPrefix("/{" + commitUUID + "}/files").Subrouter()
-	fr.Methods("GET").Path("").HandlerFunc(fileGetAll)
-	fr.Methods("POST").Path("").HandlerFunc(filePost)
-	fr.Methods("GET").Path("/{" + fileUUID + "}").HandlerFunc(fileGet)
-	fr.Methods("PUT").Path("/{" + fileUUID + "}").HandlerFunc(filePut)
-	fr.Methods("DELETE").Path("/{" + fileUUID + "}").HandlerFunc(fileDelete)
+	// Project
+	project := r.PathPrefix("/projects").Subrouter()
+	project.Use(authMiddleware)
+	project.Methods("GET").Path("").HandlerFunc(projectGetAll)
+	project.Methods("POST").Path("").HandlerFunc(projectPost)
+	project.Methods("GET").Path("/" + projectVar).HandlerFunc(projectGet)
+	project.Methods("PATCH").Path("/" + projectVar).HandlerFunc(projectPatch)
+	project.Methods("DELETE").Path("/" + projectVar).HandlerFunc(projectDelete)
+
+	// Commit
+	commit := project.PathPrefix("/" + projectVar + "/commits").Subrouter()
+	commit.Methods("GET").Path("").HandlerFunc(commitGetAll)
+	commit.Methods("POST").Path("").HandlerFunc(commitPost)
+	commit.Methods("GET").Path("/" + commitVar).HandlerFunc(commitGet)
+	commit.Methods("PATCH").Path("/" + commitVar).HandlerFunc(commitPatch)
+	commit.Methods("DELETE").Path("/" + commitVar).HandlerFunc(commitDelete)
+
+	// File
+	file := commit.PathPrefix("/" + commitVar + "/files").Subrouter()
+	file.Methods("GET").Path("").HandlerFunc(fileGetAll)
+	file.Methods("POST").Path("").HandlerFunc(filePost)
+	file.Methods("GET").Path("/" + fileVar).HandlerFunc(fileGet)
+	file.Methods("PATCH").Path("/" + fileVar).HandlerFunc(filePatch)
+	file.Methods("DELETE").Path("/" + fileVar).HandlerFunc(fileDelete)
 
 	// Setup CORS
 	origins := handlers.AllowedOrigins([]string{cfg.AllowedOrigin})
 	headers := handlers.AllowedHeaders([]string{"Content-Type"})
-	methods := handlers.AllowedMethods([]string{http.MethodGet, http.MethodPost,
-		http.MethodPut, http.MethodDelete})
-
+	methods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "PATCH", "DELETE"})
 	return handlers.CORS(origins, headers, methods)(r)
 }

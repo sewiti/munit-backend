@@ -8,7 +8,9 @@ import (
 	"syscall"
 
 	"github.com/apex/log"
+	"github.com/sewiti/munit-backend/internal/auth"
 	"github.com/sewiti/munit-backend/internal/config"
+	"github.com/sewiti/munit-backend/internal/model"
 	"github.com/sewiti/munit-backend/internal/web"
 	"github.com/vrischmann/envconfig"
 )
@@ -19,6 +21,21 @@ func main() {
 		log.WithError(err).Fatal("unable to read environment config")
 		return
 	}
+
+	if cfg.Munit.Debug {
+		log.SetLevelFromString("debug")
+	}
+
+	if err := auth.LoadSecret(cfg.Munit.SecretFile); err != nil {
+		log.WithError(err).Fatal("unable to setup secret")
+		return
+	}
+
+	if err := model.OpenDB(cfg.Munit.DSN); err != nil {
+		log.WithError(err).Fatal("unable to open database")
+		return
+	}
+	defer model.CloseDB()
 
 	// Create server
 	srv := &http.Server{

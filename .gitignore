@@ -1,3 +1,6 @@
+# Munit specific
+.secret
+
 # VSCode configuration
 .vscode
 
