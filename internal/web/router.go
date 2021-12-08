@@ -31,7 +31,7 @@ func NewRouter(cfg *config.Munit) http.Handler {
 
 	// Auth
 	r.Methods("POST").Path("/register").HandlerFunc(registerPost)
-	r.Methods("GET").Path("/login").HandlerFunc(loginGet)
+	r.Methods("POST").Path("/login").HandlerFunc(loginPost)
 
 	// Profile
 	profile := r.PathPrefix("/profile").Subrouter()
@@ -68,7 +68,7 @@ func NewRouter(cfg *config.Munit) http.Handler {
 
 	// Setup CORS
 	origins := handlers.AllowedOrigins([]string{cfg.AllowedOrigin})
-	headers := handlers.AllowedHeaders([]string{"Content-Type"})
+	headers := handlers.AllowedHeaders([]string{"Authorization", "Content-Type"})
 	methods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "PATCH", "DELETE"})
 	return handlers.CORS(origins, headers, methods)(r)
 }
