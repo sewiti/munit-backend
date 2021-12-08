@@ -47,7 +47,7 @@ func registerPost(w http.ResponseWriter, r *http.Request) {
 	respond(w, u, http.StatusCreated)
 }
 
-func loginGet(w http.ResponseWriter, r *http.Request) {
+func loginPost(w http.ResponseWriter, r *http.Request) {
 	u := new(model.User)
 	if err := decodeJSON(r, u); err != nil {
 		respondErr(w, err)
